@@ -1288,14 +1288,14 @@ export default class SseEditor3d extends React.Component {
         this.meta.rotationY = ry || 0;
         this.meta.rotationZ = rz || 0;
         this.cloudGeometry.rotateX(this.meta.rotationX).rotateY(this.meta.rotationY).rotateZ(this.meta.rotationZ);
-        this.display(this.objects, this.positionArray, this.labelArray, this.rgbArray);
+        this.display(this.objects, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray);
         this.saveMeta();
     }
 
     resetRotation() {
         const {rotationX, rotationY, rotationZ} = this.meta;
         this.cloudGeometry.rotateZ(-rotationZ || 0).rotateY(-rotationY || 0).rotateX(-rotationX || 0);
-        this.display(undefined, this.positionArray, this.labelArray, this.rgbArray);
+        this.display(this.objectArray, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray);
         this.meta.rotationX = this.meta.rotationY = this.meta.rotationZ = 0;
         this.updateGlobalBox();
         this.invalidatePosition();
@@ -1920,7 +1920,7 @@ export default class SseEditor3d extends React.Component {
         }
     }
 
-    display(objectArray, positionArray, labelArray, rgbArray) {
+    display(objectArray, positionArray, labelArray, instanceArray, rgbArray) {
         return new Promise( (res, rej)=> {
             this.scene.remove(this.cloudObject);
             const geometry = this.geometry = new THREE.BufferGeometry();
@@ -1930,6 +1930,7 @@ export default class SseEditor3d extends React.Component {
             this.objects = new Set(objectArray);
             this.buildPointToObjectMap();
             this.labelArray = labelArray;
+            this.instanceArray = instanceArray;
 
             this.rgbArray = rgbArray;
 
@@ -2014,8 +2015,7 @@ export default class SseEditor3d extends React.Component {
         const loader = new THREE.PCDLoader();
         return new Promise((res) => {
             loader.load(fileUrl, (arg) => {
-
-                this.display(arg.object, arg.position, arg.label, arg.rgb);
+                this.display(arg.object, arg.position, arg.label, arg.instance, arg.rgb);
                 Object.assign(this.meta, {header: arg.header});
                 res();
             });
@@ -2085,12 +2085,15 @@ export default class SseEditor3d extends React.Component {
                     this.saveBinaryLabels();
                 }).then(() => {
                 this.dataManager.loadBinaryFile(this.props.imageUrl + ".objects").then(result => {
+                    this.sendMsg("bottom-right-label", {message: "Loading object instances..."});
                     if (!result.forEach)
                         result = undefined;
-                    this.display(result, this.positionArray, this.labelArray, this.rgbArray).then( ()=>{
+                    this.objectArray = result;
+                    this.display(this.objectArray, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray).then( ()=>{
                         this.initDone();
                     });
                 }, () => {
+                    this.saveBinaryObjects();
                     this.initDone();
                 });
             });

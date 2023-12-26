@@ -1,4 +1,6 @@
 // Based on three.js PCDLoader class (only support ASCII PCD files)
+import {Random} from 'meteor/random';
+
 export default class SsePCDLoader {
     constructor(THREE) {
         THREE.PCDLoader = function (serverMode) {
@@ -142,6 +144,7 @@ export default class SsePCDLoader {
                 var position = [];
                 var color = [];
                 var label = [];
+                var instance = [];
                 var payload = [];
                 var rgb = [];
 
@@ -187,6 +190,15 @@ export default class SsePCDLoader {
                         } else {
                             item.classIndex = 0;
                             label.push(0);
+                        }
+
+                        if (offset.instance !== undefined) {
+                            const instanceIndex = parseInt(line[offset.instance]) || 0;
+                            item.instanceIndex = instanceIndex;
+                            instance.push(instanceIndex);
+                        } else {
+                            item.instanceIndex = -9999;
+                            instance.push(-9999);
                         }
 
                         // Initialize colors
@@ -250,7 +262,7 @@ export default class SsePCDLoader {
                         if ( offset.label !== undefined ) {
                             const classIndex = dataview.getUint8( PCDheader.points * offset.label + PCDheader.size[ 3 ] * i );
                             item.classIndex = classIndex;
-                            label.push( classIndex );
+                            label.push(classIndex);
                         } else {
                             item.classIndex = 0;
                             label.push(0);
@@ -338,9 +350,10 @@ export default class SsePCDLoader {
                     geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
                 if (label.length > 0)
                     geometry.setAttribute('label', new THREE.Uint8BufferAttribute(label, 3));
+                if (instance.length > 0)
+                    geometry.setAttribute('instance', new THREE.Uint16BufferAttribute(instance, 3));
                 if (color.length > 0) {
-                    const colorAtt = new THREE.Float32BufferAttribute(color, 3);
-                    geometry.setAttribute('color', colorAtt);
+                    geometry.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
                 }
 
                 geometry.computeBoundingSphere();
@@ -354,7 +367,26 @@ export default class SsePCDLoader {
                 name = /([^\/]*)/.exec(name);
                 name = name[1].split('').reverse().join('');
                 mesh.name = url;
-                return {position, label, header: PCDheader, rgb};
+
+                var object = [];
+                const instanceMap = new Map();
+                for (let i = 0; i < instance.length; i++) {
+                    const inst = instance[i]
+                    if (!instanceMap.has(inst)) {
+                        instanceMap.set(inst, []);
+                    }
+                    instanceMap.get(inst).push(i);
+                }
+                // Assume that instance id does not cross over multiple classes
+                // (otherwise it's not an instance id, and the data is incorrect)
+                for (const inst of instanceMap.keys()){
+                    const pointIds = instanceMap.get(inst);
+                    const lab = label[pointIds[0]];
+                    const obj = {id: Random.id(), classIndex: lab, points: Array.from(pointIds)};
+                    object.push(obj);
+                }
+
+                return {object, position, label, instance, header: PCDheader, rgb};
             }
 
         };
