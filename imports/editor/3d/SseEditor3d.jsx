@@ -46,6 +46,7 @@ export default class SseEditor3d extends React.Component {
         this.pointSizeWithAttenuation = .03;
         this.pointSizeWithoutAttenuation = 2;
         this.objects = new Set();
+        this.maxObjectId = 0;
         this.selectedObject = undefined;
         this.activeClassIndex = 0;
         this.pixelProjection = new Map();
@@ -83,39 +84,6 @@ export default class SseEditor3d extends React.Component {
         };
 
         this.cameraTween = new TWEEN.Tween(this.cameraState).onStop(endCameraTween).onComplete(endCameraTween);
-
-
-
-
-        /*
-                const imports = [
-                    "/lib/js/examples/js/Octree.js",
-                    "/lib/js/geometries/ConvexGeometry.js",
-                    "/lib/js/renderers/CanvasRenderer.js",
-                    "/lib/js/Detector.js",
-                    "/lib/js/QuickHull.js"];
-
-                let loadedCount = imports.length;
-                const loadDep = (result) => {
-                    if (result) {
-                        eval(result.content);
-                        loadedCount--;
-                        if (loadedCount === 0) {
-                            this.init();
-                        }
-                    }
-                };
-
-                imports.forEach(u =>
-                    HTTP.call("GET", u,
-                        null, (error, result) => {
-                            if (error)
-                                console.log(error);
-                            else
-                                loadDep(result);
-
-                        }));
-        */
     }
 
     render() {
@@ -241,14 +209,14 @@ export default class SseEditor3d extends React.Component {
         else if (this.viewFilterState === "points")
             points = this.visibleIndices;
         if (points) {
-
-            const obj = {id: Random.id(), classIndex: this.activeClassIndex, points: Array.from(points)};
+            const newId = this.maxClassIndex + 1;
+            const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points)};
+            this.maxClassIndex = newId;
             this.objects.add(obj);
 
             this.sendMsg("objects-update", {value: this.objects});
             this.sendMsg("object-select", {value: obj});
             this.changeClassOfSelection(this.activeClassIndex);
-
         }
         this.saveAll();
     }
@@ -1288,14 +1256,14 @@ export default class SseEditor3d extends React.Component {
         this.meta.rotationY = ry || 0;
         this.meta.rotationZ = rz || 0;
         this.cloudGeometry.rotateX(this.meta.rotationX).rotateY(this.meta.rotationY).rotateZ(this.meta.rotationZ);
-        this.display(this.objects, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray);
+        this.display(this.objects, this.positionArray, this.labelArray, this.rgbArray);
         this.saveMeta();
     }
 
     resetRotation() {
         const {rotationX, rotationY, rotationZ} = this.meta;
         this.cloudGeometry.rotateZ(-rotationZ || 0).rotateY(-rotationY || 0).rotateX(-rotationX || 0);
-        this.display(this.objectArray, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray);
+        this.display(this.objectArray, this.positionArray, this.labelArray, this.rgbArray);
         this.meta.rotationX = this.meta.rotationY = this.meta.rotationZ = 0;
         this.updateGlobalBox();
         this.invalidatePosition();
@@ -1920,7 +1888,7 @@ export default class SseEditor3d extends React.Component {
         }
     }
 
-    display(objectArray, positionArray, labelArray, instanceArray, rgbArray) {
+    display(objectArray, positionArray, labelArray, rgbArray) {
         return new Promise( (res, rej)=> {
             this.scene.remove(this.cloudObject);
             const geometry = this.geometry = new THREE.BufferGeometry();
@@ -1930,7 +1898,6 @@ export default class SseEditor3d extends React.Component {
             this.objects = new Set(objectArray);
             this.buildPointToObjectMap();
             this.labelArray = labelArray;
-            this.instanceArray = instanceArray;
 
             this.rgbArray = rgbArray;
 
@@ -2015,7 +1982,7 @@ export default class SseEditor3d extends React.Component {
         const loader = new THREE.PCDLoader();
         return new Promise((res) => {
             loader.load(fileUrl, (arg) => {
-                this.display(arg.object, arg.position, arg.label, arg.instance, arg.rgb);
+                this.display(arg.object, arg.position, arg.label, arg.rgb);
                 Object.assign(this.meta, {header: arg.header});
                 res();
             });
@@ -2068,6 +2035,7 @@ export default class SseEditor3d extends React.Component {
         const fileUrl = SseGlobals.getFileUrl(this.props.imageUrl);
 
         this.loadPCDFile(fileUrl).then(() => {
+            this.maxClassIndex = this.objects.length > 0 ? Math.max(...this.objects.map(obj => obj.id)) : 0;
             this.rotateGeometry(this.meta.rotationX, this.meta.rotationY, this.meta.rotationZ);
             this.sendMsg("bottom-right-label", {message: "Loading labels..."});
             this.dataManager.loadBinaryFile(this.props.imageUrl + ".labels")
@@ -2089,7 +2057,7 @@ export default class SseEditor3d extends React.Component {
                     if (!result.forEach)
                         result = undefined;
                     this.objectArray = result;
-                    this.display(this.objectArray, this.positionArray, this.labelArray, this.instanceArray, this.rgbArray).then( ()=>{
+                    this.display(this.objectArray, this.positionArray, this.labelArray, this.rgbArray).then( ()=>{
                         this.initDone();
                     });
                 }, () => {

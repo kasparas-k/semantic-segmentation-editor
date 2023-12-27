@@ -51,7 +51,7 @@ class SseObjectButton extends React.Component {
         let label = UNDEFINED_CLASS;
         if (this.props.soc) {
             const props = this.props.soc.propsForIndex(this.props.object.classIndex);
-            label = props.label;
+            label = props.label + ' ' + this.props.object.id;
             color = props.color;
         }
 

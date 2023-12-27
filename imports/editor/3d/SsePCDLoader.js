@@ -350,8 +350,6 @@ export default class SsePCDLoader {
                     geometry.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
                 if (label.length > 0)
                     geometry.setAttribute('label', new THREE.Uint8BufferAttribute(label, 3));
-                if (instance.length > 0)
-                    geometry.setAttribute('instance', new THREE.Uint16BufferAttribute(instance, 3));
                 if (color.length > 0) {
                     geometry.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
                 }
@@ -382,11 +380,11 @@ export default class SsePCDLoader {
                 for (const inst of instanceMap.keys()){
                     const pointIds = instanceMap.get(inst);
                     const lab = label[pointIds[0]];
-                    const obj = {id: Random.id(), classIndex: lab, points: Array.from(pointIds)};
+                    const obj = {id: inst, classIndex: lab, points: Array.from(pointIds)};
                     object.push(obj);
                 }
 
-                return {object, position, label, instance, header: PCDheader, rgb};
+                return {object, position, label, header: PCDheader, rgb};
             }
 
         };
