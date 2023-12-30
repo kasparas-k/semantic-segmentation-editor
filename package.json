@@ -44,6 +44,7 @@
     "point-in-polygon-extended": "0.0.1",
     "polybooljs": "1.2.0",
     "postal": "2.0.5",
+    "randomcolor": "^0.6.2",
     "rc-slider": "8.6.1",
     "react": "^16.14.0",
     "react-dom": "^16.14.0",

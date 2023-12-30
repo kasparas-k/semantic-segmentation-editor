@@ -1,6 +1,5 @@
 // Based on three.js PCDLoader class (only support ASCII PCD files)
-import {Random} from 'meteor/random';
-
+import randomColor from 'randomcolor';
 export default class SsePCDLoader {
     constructor(THREE) {
         THREE.PCDLoader = function (serverMode) {
@@ -380,7 +379,7 @@ export default class SsePCDLoader {
                 for (const inst of instanceMap.keys()){
                     const pointIds = instanceMap.get(inst);
                     const lab = label[pointIds[0]];
-                    const obj = {id: inst, classIndex: lab, points: Array.from(pointIds)};
+                    const obj = {id: inst, classIndex: lab, points: Array.from(pointIds), color: randomColor()};
                     object.push(obj);
                 }
 
