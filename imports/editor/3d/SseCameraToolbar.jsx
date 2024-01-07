@@ -3,7 +3,7 @@ import React from 'react';
 import Slider from 'rc-slider';
 import {
     ArrowCollapseDown, ArrowCollapseLeft, ArrowCollapseRight, ArrowCollapseUp, ArrowExpandDown, Blur, BlurOff,
-    Brightness6, CubeSend, ImageFilterTiltShift, Rotate3D, Target, Video, Lightbulb, LightbulbOn
+    Brightness6, CubeSend, ImageFilterTiltShift, Rotate3D, Target, Video, Lightbulb, LightbulbOn, LightbulbGroup
 } from 'mdi-material-ui';
 import SseToolbar from "../../common/SseToolbar";
 

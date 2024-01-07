@@ -52,7 +52,7 @@ class SseObjectButton extends React.Component {
         if (this.props.soc) {
             const props = this.props.soc.propsForIndex(this.props.object.classIndex);
             label = props.label + ' ' + this.props.object.id;
-            color = props.color;
+            color = this.props.object.color;
         }
 
         return (<div className={"object-button" + (this.state.selected ? " selected" : "")}>
@@ -193,10 +193,14 @@ export default class SseObjectToolbar extends SseToolbar {
                 </div>
                 <div className="object-list scroller group vflex grow wrap"
                      onWheel={ev => this.wheelScrolling(ev)}>
-                    {Array.from(this.state.objects).map((o, idx) => (
+                    {Array.from(this.state.objects)
+                    .sort((a, b) => a.id - b.id)
+                    .map((o, idx) => (
                         <SseObjectButton key={"_" + idx}
                                          soc={this.state.soc}
-                                         object={o}/>))}
+                                         object={o}/>
+                        )
+                    )}
                 </div>
             </div>
 

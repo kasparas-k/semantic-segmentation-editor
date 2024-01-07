@@ -122,6 +122,7 @@ export default class SseEditor3d extends React.Component {
                 const classData = this.classesDescriptors.byIndex[pt.classIndex];
                 if (classData.visible) {
                     this.assignNewClass(pos, pt.classIndex);
+                    this.assignNewInstance(pos, pt.instanceIndex);
                     const {x, y, z} = this.cloudData[pos];
                     this.setPosition(pos, x, y, z);
                     this.showIndex(pos);
@@ -283,6 +284,7 @@ export default class SseEditor3d extends React.Component {
             if (this.selectedObject.points.indexOf(idx) == -1) {
                 this.selectedObject.points.push(idx);
                 this.assignNewClass(idx, this.selectedObject.classIndex);
+                this.assignNewInstance(idx, this.selectedObject.instanceIndex);
             }
         });
         this.clearSelection();
@@ -296,6 +298,7 @@ export default class SseEditor3d extends React.Component {
             if (ptsArray.indexOf(idx) != -1) {
                 ptsArray.splice(ptsArray.indexOf(idx), 1);
                 this.assignNewClass(idx, 0);
+                this.assignNewInstance(idx, -9999);
                 if (this.autoFilterMode)
                     this.hideIndex(idx);
             }
@@ -843,8 +846,9 @@ export default class SseEditor3d extends React.Component {
             const pj = this.getPixel(data);
             if (pj) {
                 let message = this.activeSoc.labelForIndex(data.classIndex);
+                message += " " + data.instanceIndex;
                 const oc = this.originalCoordinates(this.highlightedIndex);
-                message += " (x: " + round2(oc.x)
+                message += "  (x: " + round2(oc.x)
                     + "m, y: " + round2(oc.y)
                     + "m, z: " + round2(oc.z) + "m)";
                 this.sendMsg("bottom-right-label", {message})
@@ -1680,6 +1684,18 @@ export default class SseEditor3d extends React.Component {
         this.invalidateColor();
     }
 
+    assignNewInstance(pointIndex, instanceIndex) {
+        const item = this.cloudData[pointIndex];
+        this.selection.delete(pointIndex);
+        const obj = this.pointToObject.get(pointIndex);
+        if (obj && obj.instanceIndex !== instanceIndex) {
+            obj.points.splice(obj.points.indexOf(pointIndex), 1);
+        }
+        this.ungrayIndex(pointIndex);
+        this.setColor(pointIndex, this.classesDescriptors.byIndex[instanceIndex]);
+        this.invalidateColor();
+    }
+
     changeTarget(ev) {
         if (this.mouseTargetIndex) {
             const newTarget = new THREE.Vector3().copy(this.cloudData[this.mouseTargetIndex]);
@@ -1695,6 +1711,7 @@ export default class SseEditor3d extends React.Component {
             case 'Delete':
                 this.selection.forEach(idx => {
                     this.assignNewClass(idx, 0);
+                    this.assignNewInstance(idx, -9999);
                 });
                 this.updateClassFilter();
                 break;
@@ -2040,8 +2057,9 @@ export default class SseEditor3d extends React.Component {
             this.cloudData.map(_ => this.instanceColorArray.push([0.5, 0.5, 0.5]));
             objectArray.forEach(obj => {
                 const rgb = SseGlobals.hex2rgb(obj.color);
-                obj.points.forEach(v => {
-                    this.instanceColorArray[v] = [rgb[0], rgb[1], rgb[2]]
+                obj.points.forEach(i => {
+                    this.cloudData[i].instanceIndex = obj.id;
+                    this.instanceColorArray[i] = [rgb[0], rgb[1], rgb[2]]
                 });
             });
         }
