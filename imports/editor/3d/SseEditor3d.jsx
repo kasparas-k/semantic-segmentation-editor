@@ -44,7 +44,7 @@ export default class SseEditor3d extends React.Component {
         this.colorCache = new Map();
         this.pointSizeWithAttenuation = .03;
         this.pointSizeWithoutAttenuation = 2;
-        this.objects = new Set();
+        this.objectSet = new Set();
         this.maxObjectId = 0;
         this.selectedObject = undefined;
         this.activeClassIndex = 0;
@@ -122,7 +122,6 @@ export default class SseEditor3d extends React.Component {
                 const classData = this.classesDescriptors.byIndex[pt.classIndex];
                 if (classData.visible) {
                     this.assignNewClass(pos, pt.classIndex);
-                    this.assignNewInstance(pos, pt.instanceIndex);
                     const {x, y, z} = this.cloudData[pos];
                     this.setPosition(pos, x, y, z);
                     this.showIndex(pos);
@@ -201,6 +200,10 @@ export default class SseEditor3d extends React.Component {
         this.saveAll();
     }
 
+    changeInstanceOfSelection(instanceIndex) {
+        this.selection.forEach(idx => this.assignNewInstance(idx, instanceIndex));
+    }
+
     createObject() {
         let points;
         if (this.selection.size > 0)
@@ -211,9 +214,9 @@ export default class SseEditor3d extends React.Component {
             const newId = this.maxClassIndex + 1;
             const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points), color: randomColor()};
             this.maxClassIndex = newId;
-            this.objects.add(obj);
+            this.objectSet.add(obj);
 
-            this.sendMsg("objects-update", {value: this.objects});
+            this.sendMsg("objects-update", {value: this.objectSet});
             this.sendMsg("object-select", {value: obj});
             this.changeClassOfSelection(this.activeClassIndex);
         }
@@ -231,13 +234,14 @@ export default class SseEditor3d extends React.Component {
     }
 
     invalidateObjects() {
-        this.sendMsg("objects-update", {value: this.objects});
+        this.sendMsg("objects-update", {value: this.objectSet});
     }
 
     deleteSelectedObject() {
         if (this.selectedObject) {
+            this.changeInstanceOfSelection(-9999);
             this.changeClassOfSelection(0);
-            this.objects.delete(this.selectedObject);
+            this.objectSet.delete(this.selectedObject);
             this.selectedObject = undefined;
             this.sendMsg("object-select", {value: undefined});
             this.invalidateObjects();
@@ -284,7 +288,7 @@ export default class SseEditor3d extends React.Component {
             if (this.selectedObject.points.indexOf(idx) == -1) {
                 this.selectedObject.points.push(idx);
                 this.assignNewClass(idx, this.selectedObject.classIndex);
-                this.assignNewInstance(idx, this.selectedObject.instanceIndex);
+                this.assignNewInstance(idx, this.selectedObject.id);
             }
         });
         this.clearSelection();
@@ -1262,14 +1266,14 @@ export default class SseEditor3d extends React.Component {
         this.meta.rotationY = ry || 0;
         this.meta.rotationZ = rz || 0;
         this.cloudGeometry.rotateX(this.meta.rotationX).rotateY(this.meta.rotationY).rotateZ(this.meta.rotationZ);
-        this.display(this.objects, this.positionArray, this.labelArray, this.rgbArray);
+        this.display(this.objectSet, this.positionArray, this.labelArray, this.rgbArray);
         this.saveMeta();
     }
 
     resetRotation() {
         const {rotationX, rotationY, rotationZ} = this.meta;
         this.cloudGeometry.rotateZ(-rotationZ || 0).rotateY(-rotationY || 0).rotateX(-rotationX || 0);
-        this.display(this.objectArray, this.positionArray, this.labelArray, this.rgbArray);
+        this.display(this.objectSet, this.positionArray, this.labelArray, this.rgbArray);
         this.meta.rotationX = this.meta.rotationY = this.meta.rotationZ = 0;
         this.updateGlobalBox();
         this.invalidatePosition();
@@ -1686,13 +1690,25 @@ export default class SseEditor3d extends React.Component {
 
     assignNewInstance(pointIndex, instanceIndex) {
         const item = this.cloudData[pointIndex];
-        this.selection.delete(pointIndex);
-        const obj = this.pointToObject.get(pointIndex);
-        if (obj && obj.instanceIndex !== instanceIndex) {
-            obj.points.splice(obj.points.indexOf(pointIndex), 1);
+
+        const srcObj = this.pointToObject.get(pointIndex);
+        srcObj.points.splice(srcObj.points.indexOf(pointIndex), 1);
+
+        item.instanceIndex = instanceIndex;
+        if (!this.cloudData.objectsByInstanceIndex[item.instanceIndex]){
+            this.cloudData.objectsByInstanceIndex[item.instanceIndex] = {
+                id: item.instanceIndex, points: [], color: '#808080', classIndex: item.classIndex 
+            }
         }
+        const destObj = this.cloudData.objectsByInstanceIndex[item.instanceIndex];
+        if (destObj && !destObj.points) {
+            destObj.points = [];
+        }
+        destObj.points.push(pointIndex);
+        this.selection.delete(pointIndex);
+
         this.ungrayIndex(pointIndex);
-        this.setColor(pointIndex, this.classesDescriptors.byIndex[instanceIndex]);
+        this.setColor(pointIndex, destObj.color);
         this.invalidateColor();
     }
 
@@ -1886,7 +1902,7 @@ export default class SseEditor3d extends React.Component {
 
     buildPointToObjectMap() {
         this.pointToObject = new Map();
-        this.objects.forEach(obj => {
+        this.objectSet.forEach(obj => {
             obj.points.forEach(idx => {
                 this.pointToObject.set(idx, obj);
             })
@@ -1912,14 +1928,14 @@ export default class SseEditor3d extends React.Component {
         }
     }
 
-    display(objectArray, positionArray, labelArray, rgbArray) {
+    display(objectSet, positionArray, labelArray, rgbArray) {
         return new Promise( (res, rej)=> {
             this.scene.remove(this.cloudObject);
             const geometry = this.geometry = new THREE.BufferGeometry();
             this.cloudData = [];
             let obj;
 
-            this.objects = new Set(objectArray);
+            this.objectSet = objectSet;
             this.buildPointToObjectMap();
             this.labelArray = labelArray;
 
@@ -1940,7 +1956,7 @@ export default class SseEditor3d extends React.Component {
                 }
             });
 
-            this.makeInstanceColorArray(objectArray);
+            this.makeInstanceColorArray(objectSet);
             this.makeLabelColorArray(labelArray);
             var newColor = []
 
@@ -1968,6 +1984,7 @@ export default class SseEditor3d extends React.Component {
             this.visibleIndices = new Set([...Array(this.cloudData.length).keys()]);
 
             this.cloudData.byClassIndex = {};
+            this.cloudData.objectsByInstanceIndex = {};
 
             this.cloudData.reduce((acc, cur) => {
                 if (acc[cur.classIndex])
@@ -1976,6 +1993,8 @@ export default class SseEditor3d extends React.Component {
                     acc[cur.classIndex] = new Set([cur]);
                 return acc;
             }, this.cloudData.byClassIndex);
+
+            this.objectSet.forEach(obj => this.cloudData.objectsByInstanceIndex[obj.id] = obj);
 
             this.cloudGeometry = geometry;
             this.camera.up.set(0, -1, 0);
@@ -2001,7 +2020,7 @@ export default class SseEditor3d extends React.Component {
         const loader = new THREE.PCDLoader();
         return new Promise((res) => {
             loader.load(fileUrl, (arg) => {
-                this.display(arg.object, arg.position, arg.label, arg.rgb);
+                this.display(new Set(arg.object), arg.position, arg.label, arg.rgb);
                 Object.assign(this.meta, {header: arg.header});
                 res();
             });
@@ -2014,7 +2033,7 @@ export default class SseEditor3d extends React.Component {
     }
 
     saveBinaryObjects() {
-        this.dataManager.saveBinaryFile(this.props.imageUrl + ".objects", Array.from(this.objects));
+        this.dataManager.saveBinaryFile(this.props.imageUrl + ".objects", Array.from(this.objectSet));
     }
 
     saveAll() {
@@ -2054,7 +2073,10 @@ export default class SseEditor3d extends React.Component {
     makeInstanceColorArray(objectArray){
         this.instanceColorArray = [];
         if (objectArray) {
-            this.cloudData.map(_ => this.instanceColorArray.push([0.5, 0.5, 0.5]));
+            this.cloudData.map(c => {
+                this.instanceColorArray.push([0.5, 0.5, 0.5]);
+                // c.instanceIndex = -9999;
+            });
             objectArray.forEach(obj => {
                 const rgb = SseGlobals.hex2rgb(obj.color);
                 obj.points.forEach(i => {
@@ -2079,7 +2101,7 @@ export default class SseEditor3d extends React.Component {
         const fileUrl = SseGlobals.getFileUrl(this.props.imageUrl);
 
         this.loadPCDFile(fileUrl).then(() => {
-            this.maxClassIndex = this.objects.length > 0 ? Math.max(...this.objects.map(obj => obj.id)) : 0;
+            this.maxClassIndex = this.objectSet.length > 0 ? Math.max(...this.objectSet.map(obj => obj.id)) : 0;
             this.rotateGeometry(this.meta.rotationX, this.meta.rotationY, this.meta.rotationZ);
             this.sendMsg("bottom-right-label", {message: "Loading labels..."});
             this.dataManager.loadBinaryFile(this.props.imageUrl + ".labels")
@@ -2100,8 +2122,8 @@ export default class SseEditor3d extends React.Component {
                     this.sendMsg("bottom-right-label", {message: "Loading object instances..."});
                     if (!result.forEach)
                         result = undefined;
-                    this.objectArray = result;
-                    this.display(this.objectArray, this.positionArray, this.labelArray, this.rgbArray).then( ()=>{
+                    this.objectSet = result;
+                    this.display(this.objectSet, this.positionArray, this.labelArray, this.rgbArray).then( ()=>{
                         this.initDone();
                     });
                 }, () => {
