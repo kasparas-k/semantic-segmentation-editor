@@ -205,23 +205,37 @@ export default class SseEditor3d extends React.Component {
     }
 
     createObject() {
+        this.buildPointToObjectMap();
         let points;
         if (this.selection.size > 0)
             points = this.selection;
         else if (this.viewFilterState === "points")
             points = this.visibleIndices;
         if (points) {
-            const newId = this.maxClassIndex + 1;
+            const newId = this.maxInstanceIndex + 1;
             const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points), color: randomColor()};
-            this.maxClassIndex = newId;
+            this.maxInstanceIndex = newId;
+            console.log(this.cloudData.objectsByInstanceIndex);
             this.objectSet.add(obj);
 
             this.sendMsg("objects-update", {value: this.objectSet});
             this.sendMsg("object-select", {value: obj});
+            this.cloudData.objectsByInstanceIndex[obj.id] = obj;
+            this.changeInstanceOfSelection(obj.id)
             this.changeClassOfSelection(this.activeClassIndex);
         }
+        this.pruneObjects();
         this.invalidateColor();
+        this.invalidateCounters();
         this.saveAll();
+    }
+
+    pruneObjects() {
+        this.objectSet.forEach(obj => {
+            if (obj.points.length == 0)
+                // delete this.cloudData.objectsByInstanceIndex[obj.id]
+                this.objectSet.delete(obj);
+        });
     }
 
     invalidateCounters() {
@@ -284,30 +298,34 @@ export default class SseEditor3d extends React.Component {
     }
 
     addObjectPoints() {
+        this.buildPointToObjectMap();
         this.selection.forEach(idx => {
             if (this.selectedObject.points.indexOf(idx) == -1) {
                 this.selectedObject.points.push(idx);
-                this.assignNewClass(idx, this.selectedObject.classIndex);
                 this.assignNewInstance(idx, this.selectedObject.id);
+                this.assignNewClass(idx, this.selectedObject.classIndex);
             }
         });
         this.clearSelection();
+        this.pruneObjects();
         this.invalidateColor();
         this.saveAll();
     }
 
     removeObjectPoints() {
+        this.buildPointToObjectMap();
         const ptsArray = this.selectedObject.points;
         this.selection.forEach(idx => {
             if (ptsArray.indexOf(idx) != -1) {
                 ptsArray.splice(ptsArray.indexOf(idx), 1);
-                this.assignNewClass(idx, 0);
                 this.assignNewInstance(idx, -9999);
+                this.assignNewClass(idx, 0);
                 if (this.autoFilterMode)
                     this.hideIndex(idx);
             }
         });
         this.clearSelection();
+        this.pruneObjects();
         this.invalidateColor();
         this.saveAll();
     }
@@ -379,6 +397,8 @@ export default class SseEditor3d extends React.Component {
         this.onMsg("classSelection", (arg) => {
             this.activeClassIndex = arg.descriptor.classIndex;
             this.changeClassOfSelection(this.activeClassIndex);
+            this.invalidateColor();
+            this.invalidateCounters();
         });
 
         this.onMsg("active-soc", arg => {
@@ -898,6 +918,8 @@ export default class SseEditor3d extends React.Component {
                 this.colorIsDirty = false;
                 this.cloudObject.geometry.attributes.color.needsUpdate = true;
             } else {
+                this.makeInstanceColorArray(this.objectSet);
+                this.makeLabelColorArray(this.labelArray);
                 this.cloudData.forEach((pt, idx) => {
                     if (this.selection.has(idx)) {
                         this.setColor(idx, {red: 1, green: 0});
@@ -1692,7 +1714,8 @@ export default class SseEditor3d extends React.Component {
         const item = this.cloudData[pointIndex];
 
         const srcObj = this.pointToObject.get(pointIndex);
-        srcObj.points.splice(srcObj.points.indexOf(pointIndex), 1);
+        if (srcObj)
+            srcObj.points.splice(srcObj.points.indexOf(pointIndex), 1);
 
         item.instanceIndex = instanceIndex;
         if (!this.cloudData.objectsByInstanceIndex[item.instanceIndex]){
@@ -1705,7 +1728,6 @@ export default class SseEditor3d extends React.Component {
             destObj.points = [];
         }
         destObj.points.push(pointIndex);
-        this.selection.delete(pointIndex);
 
         this.ungrayIndex(pointIndex);
         this.setColor(pointIndex, destObj.color);
@@ -1726,8 +1748,8 @@ export default class SseEditor3d extends React.Component {
                 break;
             case 'Delete':
                 this.selection.forEach(idx => {
-                    this.assignNewClass(idx, 0);
                     this.assignNewInstance(idx, -9999);
+                    this.assignNewClass(idx, 0);
                 });
                 this.updateClassFilter();
                 break;
@@ -1936,6 +1958,7 @@ export default class SseEditor3d extends React.Component {
             let obj;
 
             this.objectSet = objectSet;
+            this.maxInstanceIndex = [...this.objectSet].reduce((max, obj) => (obj.id > max ? obj.id : max), -Infinity);
             this.buildPointToObjectMap();
             this.labelArray = labelArray;
 
@@ -2070,14 +2093,14 @@ export default class SseEditor3d extends React.Component {
         }
     }
 
-    makeInstanceColorArray(objectArray){
+    makeInstanceColorArray(objectSet){
         this.instanceColorArray = [];
-        if (objectArray) {
+        if (objectSet) {
             this.cloudData.map(c => {
                 this.instanceColorArray.push([0.5, 0.5, 0.5]);
                 // c.instanceIndex = -9999;
             });
-            objectArray.forEach(obj => {
+            objectSet.forEach(obj => {
                 const rgb = SseGlobals.hex2rgb(obj.color);
                 obj.points.forEach(i => {
                     this.cloudData[i].instanceIndex = obj.id;
