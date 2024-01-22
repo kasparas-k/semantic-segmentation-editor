@@ -66,7 +66,7 @@ function generatePCDOutput(req, res, next) {
         const rgb2int = rgb => rgb[2] + 256 * rgb[1] + 256 * 256 * rgb[0];
 
         let out = "VERSION .7\n";
-        out += hasRgb ? "FIELDS x y z rgb label object\n" : "FIELDS x y z label object\n";
+        out += hasRgb ? "FIELDS x y z rgb label instance\n" : "FIELDS x y z label instance\n";
         out += hasRgb ? "SIZE 4 4 4 4 4 4\n" : "SIZE 4 4 4 4 4\n";
         out += hasRgb ? "TYPE F F F I I I\n" : "TYPE F F F I I\n";
         out += hasRgb ? "COUNT 1 1 1 1 1 1\n" : "COUNT 1 1 1 1 1\n";

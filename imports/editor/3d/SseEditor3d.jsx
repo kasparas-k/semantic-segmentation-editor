@@ -215,7 +215,6 @@ export default class SseEditor3d extends React.Component {
             const newId = this.maxInstanceIndex + 1;
             const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points), color: randomColor()};
             this.maxInstanceIndex = newId;
-            console.log(this.cloudData.objectsByInstanceIndex);
             this.objectSet.add(obj);
 
             this.sendMsg("objects-update", {value: this.objectSet});
@@ -530,9 +529,9 @@ export default class SseEditor3d extends React.Component {
         this.frustrumIndices = new Set();
         const scene = this.scene = new THREE.Scene();
 
-        scene.background = new THREE.Color(0x111111);
+        scene.background = new THREE.Color(0xBEBEBE);
 
-        const camera = this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 10000);
+        const camera = this.camera = new THREE.PerspectiveCamera(1, window.innerWidth / window.innerHeight, 1, 10000);
 
         scene.add(camera);
 
