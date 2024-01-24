@@ -542,6 +542,7 @@ export default class SseEditor3d extends React.Component {
         };
 
         const renderer = this.renderer = new THREE.WebGLRenderer(rendererAttrs);
+        
         renderer.setPixelRatio(window.devicePixelRatio);
         $(renderer.domElement).addClass("absoluteTopLeftZeroW100H100");
 
@@ -874,6 +875,7 @@ export default class SseEditor3d extends React.Component {
                 message += "  (x: " + round2(oc.x)
                     + "m, y: " + round2(oc.y)
                     + "m, z: " + round2(oc.z) + "m)";
+                message += "color: " + this.colorArray[3 * this.highlightedIndex];
                 this.sendMsg("bottom-right-label", {message})
             }
         } else {
@@ -921,7 +923,7 @@ export default class SseEditor3d extends React.Component {
                 this.makeLabelColorArray(this.labelArray);
                 this.cloudData.forEach((pt, idx) => {
                     if (this.selection.has(idx)) {
-                        this.setColor(idx, {red: 1, green: 0});
+                        this.setColor(idx, {red: 1, green: 0, blue: 0});
                     } else if (this.grayIndices.has(idx)) {
                         this.setColor(idx, {red: 0.5, green: 0.5, blue: 0.5});
                     } else {
@@ -1980,7 +1982,7 @@ export default class SseEditor3d extends React.Component {
 
             this.makeInstanceColorArray(objectSet);
             this.makeLabelColorArray(labelArray);
-            var newColor = []
+            var newColor = [];
 
             if(this.displayRgb) {
                 newColor = rgbArray.map(rgb => {
@@ -1992,8 +1994,13 @@ export default class SseEditor3d extends React.Component {
                 newColor = this.labelColorArray;
             }
 
+            const colorArray = [];
+            newColor.forEach(rgb => {
+                colorArray.push(...rgb);
+            });
+
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positionArray, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(newColor, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorArray, 3));
 
             geometry.computeBoundingSphere();
 
