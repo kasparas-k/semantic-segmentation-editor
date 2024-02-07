@@ -79,7 +79,7 @@ export default class SseObjectToolbar extends SseToolbar {
         this.addCommand("addPointsObjectCommand", "Add Points", false, "", "object-add-points", PlusCircleOutline, "undefined", "Add Points");
         this.addCommand("removePointsObjectCommand", "Remove Points", false, "", "object-remove-points", MinusCircleOutline, "undefined", "Remove Points");
         this.addCommand("unselectObjectCommand", "Unselect Object", false, "", "object-unselect", Close, undefined, undefined);
-        this.addCommand("focusObjectCommand", "Focus Object", false, "", "object-focus", Target, undefined, "Focus Object");
+        this.addCommand("focusObjectCommand", "Export Object", false, "", "object-export", Target, undefined, "Export Object");
         this.setState({ready: true});
         this.retriggerMsg("active-soc");
     }

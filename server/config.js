@@ -61,8 +61,13 @@ const init = ()=> {
         if (config.configuration && config.configuration["internal-folder"] != "") {
             configurationFile.pointcloudsFolder = config.configuration["internal-folder"].replace(/\/$/, "");
         }else{
-
             configurationFile.pointcloudsFolder = join(os.homedir(), "sse-internal");
+        }
+
+        if (config.configuration && config.configuration["instance-folder"] != "") {
+            configurationFile.instancesFolder = config.configuration["instance-folder"].replace(/\/$/, "");
+        }else{
+            configurationFile.instancesFolder = join(os.homedir(), "sse-instance");
         }
 
         configurationFile.setsOfClassesMap = new Map();

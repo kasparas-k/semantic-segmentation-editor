@@ -10,7 +10,7 @@ WebApp.connectHandlers.use("/api/pcdtext", generatePCDOutput.bind({fileMode: fal
 WebApp.connectHandlers.use("/api/pcdfile", generatePCDOutput.bind({fileMode: true}));
 WebApp.connectHandlers.use("/api/listing", imagesListing);
 
-const {imagesFolder, pointcloudsFolder, setsOfClassesMap} = configurationFile;
+const {imagesFolder, pointcloudsFolder, instancesFolder, setsOfClassesMap} = configurationFile;
 new SsePCDLoader(THREE);
 
 function imagesListing(req, res, next) {
@@ -66,10 +66,10 @@ function generatePCDOutput(req, res, next) {
         const rgb2int = rgb => rgb[2] + 256 * rgb[1] + 256 * 256 * rgb[0];
 
         let out = "VERSION .7\n";
-        out += hasRgb ? "FIELDS x y z rgb label instance\n" : "FIELDS x y z label instance\n";
-        out += hasRgb ? "SIZE 4 4 4 4 4 4\n" : "SIZE 4 4 4 4 4\n";
-        out += hasRgb ? "TYPE F F F I I I\n" : "TYPE F F F I I\n";
-        out += hasRgb ? "COUNT 1 1 1 1 1 1\n" : "COUNT 1 1 1 1 1\n";
+        out += hasRgb ? "FIELDS x y z rgb label instance isgood\n" : "FIELDS x y z label instance isgood\n";
+        out += hasRgb ? "SIZE 4 4 4 4 4 4 4\n" : "SIZE 4 4 4 4 4 4\n";
+        out += hasRgb ? "TYPE F F F I I I I\n" : "TYPE F F F I I I\n";
+        out += hasRgb ? "COUNT 1 1 1 1 1 1 1\n" : "COUNT 1 1 1 1 1 1\n";
         out += "WIDTH " + pcdContent.header.width + "\n";
         out += "HEIGHT " + pcdContent.header.height + "\n";
         out += "POINTS " + pcdContent.header.width*pcdContent.header.height + "\n";
@@ -96,12 +96,14 @@ function generatePCDOutput(req, res, next) {
                 }
 
                 const objectByPointIndex = new Map();
+                const isGoodByPointIndex = new Map();
 
                 if (objectsAvailable) {
                     const objects = SseDataWorkerServer.uncompress(objectContent);
                     objects.forEach((obj, objIndex) => {
                         obj.points.forEach(ptIdx => {
                             objectByPointIndex.set(ptIdx, objIndex);
+                            isGoodByPointIndex.set(ptIdx, obj.isGood);
                         })
                     });
                 }
@@ -129,10 +131,11 @@ function generatePCDOutput(req, res, next) {
                             }
                             out += labels[position] + " ";
                             const assignedObject = objectByPointIndex.get(position);
+                            const isGoodSegment = isGoodByPointIndex.get(position);
                             if (assignedObject != undefined)
-                                out += assignedObject;
+                                out += assignedObject + " " + isGoodSegment;
                             else
-                                out += "-1";
+                                out += "-1 -1";
                             out += "\n";
                             res.write(out);
                             out = "";

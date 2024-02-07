@@ -379,7 +379,7 @@ export default class SsePCDLoader {
                 for (const inst of instanceMap.keys()){
                     const pointIds = instanceMap.get(inst);
                     const lab = label[pointIds[0]];
-                    const obj = {id: inst, classIndex: lab, points: Array.from(pointIds), color: randomColor()};
+                    const obj = {id: inst, classIndex: lab, points: Array.from(pointIds), color: randomColor(), isGood: 0};
                     object.push(obj);
                 }
 

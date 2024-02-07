@@ -2,6 +2,7 @@
   "configuration": {
     "images-folder": "",
     "internal-folder": "",
+    "instance-folder": "",
     "demo-mode": false
   },
   "sets-of-classes": [

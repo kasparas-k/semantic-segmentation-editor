@@ -118,7 +118,6 @@ export default class SseEditor3d extends React.Component {
     displayAll() {
         if (this.cloudData) {
             this.cloudData.forEach((pt, pos) => {
-
                 const classData = this.classesDescriptors.byIndex[pt.classIndex];
                 if (classData.visible) {
                     this.assignNewClass(pos, pt.classIndex);
@@ -213,7 +212,7 @@ export default class SseEditor3d extends React.Component {
             points = this.visibleIndices;
         if (points) {
             const newId = this.maxInstanceIndex + 1;
-            const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points), color: randomColor()};
+            const obj = {id: newId, classIndex: this.activeClassIndex, points: Array.from(points), color: randomColor(), isGood: 0};
             this.maxInstanceIndex = newId;
             this.objectSet.add(obj);
 
@@ -227,6 +226,16 @@ export default class SseEditor3d extends React.Component {
         this.invalidateColor();
         this.invalidateCounters();
         this.saveAll();
+    }
+
+    exportObject(obj) {
+        if (obj) {
+            obj.points.forEach(idx => {
+                this.setPosition(idx, undefined, undefined, undefined);
+            });
+            obj.isGood = 1;
+            this.saveAll();
+        }
     }
 
     pruneObjects() {
@@ -463,6 +472,10 @@ export default class SseEditor3d extends React.Component {
                 this.subsetFocus(this.selectedObject.points);
         });
 
+        this.onMsg("object-export", () => {
+            this.exportObject(this.selectedObject);
+        });
+
         this.onMsg("object-add-points", () => {
             this.addObjectPoints();
             this.sendMsg("update-object-stat")
@@ -509,13 +522,6 @@ export default class SseEditor3d extends React.Component {
     }
 
     init() {
-        /*
-        THREE.Vector3.prototype.toString = function () {
-            const s = (n) => Math.round(n * 100) / 100;
-
-            return "(" + s(this.x) + ", " + s(this.y) + ", " + s(this.z) + ")";
-        };
-        */
         this.canvas3d = $("#canvas3d").get(0);
         this.canvasSelection = $("#canvasSelection").get(0);
         this.contextSelection = this.canvasSelection.getContext("2d");
@@ -604,9 +610,13 @@ export default class SseEditor3d extends React.Component {
     showIndex(idx) {
         this.hiddenIndices.delete(idx);
         this.visibleIndices.add(idx);
-        const {x, y, z} = this.cloudData[idx];
-
-        this.setPosition(idx, x, y, z);
+        const obj = this.pointToObject.get(idx);
+        if (obj.isGood == 1) {
+            this.setPosition(idx, null, null, null);
+        } else {
+            const {x, y, z} = this.cloudData[idx];
+            this.setPosition(idx, x, y, z);
+        }
         this.invalidateColor();
     }
 
