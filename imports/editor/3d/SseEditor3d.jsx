@@ -1799,9 +1799,8 @@ export default class SseEditor3d extends React.Component {
         this.mouse.downX = NaN;
         this.mouse.downY = NaN;
         if (this.mouse.dragged < 2 && this.highlightedIndex && !this.ctrlDown && ev.button != 1) {
-            this.processSelection(this.highlightedIndex);
-            this.notifySelectionChange();
-            this.setSelectionFeedback();
+            const obj = this.pointToObject.get(this.highlightedIndex);
+            this.sendMsg("object-select", {value: obj});
         }
 
         if (this.mouse.dragged < 4 && this.mouseTargetIndex == undefined
